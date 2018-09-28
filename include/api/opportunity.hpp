@@ -5,9 +5,16 @@
 #include <rapidjson/document.h>
 
 
+namespace current_rms {
+
 struct opportunity;
+
+void clearOpportunities();
+
+std::uint32_t getOpportunityCount();
 
 uuid convert( rapidjson::Value& v, opportunity** op );
 
+}
 
 #endif //

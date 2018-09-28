@@ -2,92 +2,156 @@
 #include <schedule/api/opportunity.hpp>
 
 #include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
 
 #include <curl/curl.h>
 
+#include <assert.h>
 #include <iostream>
 #include <string>
 #include <vector>
 
+const std::string API_ENDPOINT = "https://api.current-rms.com/api/v1";
+const std::string SUBDOMAIN = "twofoxesstyling";
+const std::string OPPORTUNITIES_ENDPOINT = "/opportunities";
+
+const std::string AUTHTOKEN = "xKC4nNALzixkvovsqmuG";
 
 
-//const std::string authorizeEndPoint = "www.google.com";
-//const std::string authorizeEndPoint = "https://twofoxesstyling.current-rms.com/oauth2/authorize";
-
-const std::string endPoint = "https://api.current-rms.com/api/v1";
-const std::string subdomain = "twofoxesstyling";
-const std::string authToken = "xKC4nNALzixkvovsqmuG";
-
-const std::string opportuntiesEndpoint = "/opportunities";
+std::string readBuffer;
+std::vector<current_rms::opportunity* > opportunities;
 
 
-std::vector<opportunity* > opportunities;
+struct Options {
+    //filterMode;
+    std::uint32_t view_id;
+    std::uint32_t count;
+};
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+
+static size_t WriteCallback( void *contents, size_t size, size_t nmemb, void *userp )
 {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    ((std::string*)userp)->append( (char*)contents, size * nmemb );
     return size * nmemb;
 }
 
-int main(int argc, char* argv[])
+struct curl_slist* setRequestHeader( CURL* curl )
 {
-  CURL *curl;
-  CURLcode res;
-  std::string readBuffer;
+    CURLcode res;
+    std::string subdomainheaderopt = std::string("X-SUBDOMAIN: ") + SUBDOMAIN;
+ 	std::string authheaderopt = std::string("X-AUTH-TOKEN: ") + AUTHTOKEN;
+    struct curl_slist *chunk = NULL;
 
-  curl = curl_easy_init();
-  if(curl) {
- 	std::string subdomainheaderopt = std::string("X-SUBDOMAIN: ") + subdomain;
- 	std::string authheaderopt = std::string("X-AUTH-TOKEN: ") + authToken;
+    chunk = curl_slist_append( chunk, subdomainheaderopt.c_str() );
+    chunk = curl_slist_append( chunk, authheaderopt.c_str() );
 
-	struct curl_slist *chunk = NULL;
-    chunk = curl_slist_append(chunk, subdomainheaderopt.c_str() );
-    chunk = curl_slist_append(chunk, authheaderopt.c_str() );
+	res = curl_easy_setopt( curl, CURLOPT_HTTPHEADER, chunk );
 
-	res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+    return chunk;
+}
 
-	std::string request = endPoint + opportuntiesEndpoint;
-	request += "?filtermode=live";
-	request += "&view_id=1";
-	request += "&page=1";
-	request += "&per_page=20";
+CURLcode setUrlAndParameters( CURL* curl, std::string endpoint, Options& options, std::uint32_t page )
+{
+    std::string request = API_ENDPOINT + endpoint;
+    request += "?filtermode=live";
+    request += "&view_id=" + std::to_string( options.view_id );
+    request += "&page=" + std::to_string( page );
+    request += "&per_page=" + std::to_string( options.count );
 
-    curl_easy_setopt(curl, CURLOPT_URL, request.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-    res = curl_easy_perform(curl);
-    curl_easy_cleanup(curl);
+    curl_easy_setopt( curl, CURLOPT_URL, request.c_str() );
+    curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, WriteCallback );
+    curl_easy_setopt( curl, CURLOPT_WRITEDATA, &readBuffer );
+}
 
-	//std::cout << readBuffer << std::endl;
+CURLcode performOperation( CURL* curl )
+{
+    CURLcode res;
+    res = curl_easy_perform( curl );
+    return res;
+}
 
-	//@todo: create a structure to represent the opportunity data from server.
-	//@todo: iterate all the "pages"
-	//@todo: store opportunities that fall within a given date period.
+void populateFromServer( CURL* curl, std::string endpoint )
+{
+    CURLcode res;
 
-	rapidjson::Document document;
-	document.Parse(readBuffer.c_str(), readBuffer.length());
+    //set up header
+    struct curl_slist* chunk = setRequestHeader( curl );
 
-	//assert(document.HasMember("opportunities"));
-	//assert(document[]"opportunities"].IsArray());
-	if ( !document["opportunities"].IsNull() )
-	{
-		for ( auto& a : document["opportunities"].GetArray() )
-		{
-			opportunity* op = nullptr;
-			uuid id = convert( a, &op );
-			opportunities.push_back( op );
-		}
-	}
+    Options options;
+    options.view_id = 1;
+    options.count = 50;
 
-	// rapidjson::StringBuffer buffer;
-	// rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-	// document.Accept(writer);
-	// std::cout << buffer.GetString() << std::endl;
+    std::uint32_t page = 1;
+    while (1)
+    {
+        readBuffer.clear();
+
+        res = setUrlAndParameters( curl, endpoint, options, page++ );
+        if ( res != CURLE_OK )
+        {
+            break;
+        }
+
+        res = performOperation( curl );
+        if ( res != CURLE_OK )
+        {
+            break;
+        }
+
+        rapidjson::Document document;
+    	document.Parse( readBuffer.c_str(), readBuffer.length() );
+
+    	assert( document.HasMember("opportunities") );
+    	assert( document["opportunities"].IsArray() );
+    	if ( !document["opportunities"].IsNull() )
+    	{
+            const auto& ar = document["opportunities"].GetArray();
+            if ( ar.Size() == 0 )
+            {
+                break;
+            }
+
+    		for ( auto& a : ar )
+    		{
+    			//opportunity* op = nullptr;
+    			uuid id = current_rms::convert( a, nullptr );
+    			//opportunities.push_back( op );
+    		}
+    	}
+
+        std::cout << "Opportunities: " << current_rms::getOpportunityCount() << std::endl;
+    }
 
     curl_slist_free_all(chunk);
-  }
-
-  return 0;
 }
+
+
+
+
+//@todo: create a structure to represent the opportunity data from server.
+//@todo: iterate all the "pages"
+//@todo: store opportunities that fall within a given date period.
+
+
+int main( int argc, char* argv[] )
+{
+    CURL* curl = curl_easy_init();
+    if( curl )
+    {
+        // Pull as many opportunities from the server as possible.
+        populateFromServer( curl, OPPORTUNITIES_ENDPOINT );
+
+        // Lets see how many we got.
+        std::cout << "Collected Opportunities: " << current_rms::getOpportunityCount() << std::endl;
+
+        // Clean up and lets leave!
+        curl_easy_cleanup( curl );
+    }
+
+    return 0;
+}
+
+
+// rapidjson::StringBuffer buffer;
+// rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+// document.Accept(writer);
+//std::cout << buffer.GetString() << std::endl;

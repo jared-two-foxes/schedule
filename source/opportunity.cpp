@@ -1,10 +1,18 @@
 
 #include <schedule/api/opportunity.hpp>
+#include <schedule/jsonHelper.hpp>
 
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
+#include <iostream>
 #include <string>
 #include <vector>
 
-struct opportunity {
+namespace current_rms {
+
+struct opportunity
+{
 	int id;
 	int store_id;
 	int project_id;
@@ -94,42 +102,80 @@ struct opportunity {
 	//participants;
 };
 
-namespace api {
-namespace detail {
+namespace detail
+{
     std::vector<opportunity > opportunities; //< std::pair<uuid, op > ??
-}
+
+	#define GET_VALUE( name, type ) op->name = json_cast<type>( v[#name] );
+	#define GET_VALUE_WITH_DEFAULT( name, type, def ) op->name = json_cast_with_default<type >( v[#name], def );
+
+	void convert_internal( rapidjson::Value& v, opportunity* op )
+	{
+		GET_VALUE( id, int );
+		GET_VALUE_WITH_DEFAULT( store_id, int, -1 );
+		GET_VALUE_WITH_DEFAULT( project_id, int, -1 );
+		GET_VALUE_WITH_DEFAULT( member_id, int, -1 );
+		GET_VALUE_WITH_DEFAULT( billing_address_id, int, -1 );
+		GET_VALUE_WITH_DEFAULT( venue_id, int, -1 );
+
+		GET_VALUE( subject, const char* );
+		GET_VALUE_WITH_DEFAULT( description, const char*, "" );
+		GET_VALUE( number, const char* );
+
+		// assert( v["starts_at"].IsString() );
+	    // op->starts_at = v["starts_at"].GetString();
+		//
+		// assert( v["ends_at"].IsString() );
+	    // op->ends_at = v["ends_at"].GetString();
+		//
+		// assert( v["charge_starts_at"].IsString() );
+	    // op->charge_starts_at = v["charge_starts_at"].GetString();
+		//
+		// assert( v["charge_ends_at"].IsString() );
+	    // op->charge_ends_at = v["charge_ends_at"].GetString();
+		//
+		// assert( v["ordered_at"].IsString() );
+	    // op->ordered_at = v["ordered_at"].GetString();
+		//
+		// assert( v["quote_invalid_at"].IsString() );
+	    // op->quote_invalid_at = v["quote_invalid_at"].GetString();
+		//
+		// assert( v["state"].IsInt() );
+	    // op->state = v["state"].GetInt();
+		//
+		// assert( v["state_name"].IsString() );
+	    // op->state_name = v["state_name"].GetString();
+		//
+		// assert( v["status"].IsInt() );
+	    // op->status = v["status"].GetInt();
+	}
 }
 
-void convert_internal( rapidjson::Value& v, opportunity* op )
+}
+
+
+void current_rms::clearOpportunities()
 {
-    op->id = v["id"].GetInt();
-    op->store_id = v["store_id"].GetInt();
-    op->project_id = v["project_id"].GetInt();
-    op->member_id = v["member_id"].GetInt();
-    op->billing_address_id = v["billing_address_id"].GetInt();
-    op->venue_id = v["venue_id"].GetInt();
-    op->subject = v["subject"].GetString();
-    op->description = v["description"].GetString();
-    op->number = v["number"].GetString();
-    op->starts_at = v["starts_at"].GetString();
-    op->ends_at = v["ends_at"].GetString();
-    op->charge_starts_at = v["charge_starts_at"].GetString();
-    op->charge_ends_at = v["charge_ends_at"].GetString();
-    op->ordered_at = v["ordered_at"].GetString();
-    op->quote_invalid_at = v["quote_invalid_at"].GetString();
-    op->state = v["state"].GetInt();
-    op->state_name = v["state_name"].GetString();
-    op->status = v["status"].GetInt();
+	using namespace current_rms;
+
+	detail::opportunities.clear();
 }
 
-uuid convert( rapidjson::Value& v, opportunity** op )
+std::uint32_t current_rms::getOpportunityCount()
 {
-    using namespace api::detail;
+	using namespace current_rms;
 
-    opportunities.push_back( opportunity {} );
-    opportunity& o = opportunities.back();
+	return detail::opportunities.size();
+}
 
-    convert_internal( v, &o );
+uuid current_rms::convert( rapidjson::Value& v, current_rms::opportunity** op )
+{
+	using namespace current_rms;
+
+    detail::opportunities.push_back( opportunity {} );
+    opportunity& o = detail::opportunities.back();
+
+    detail::convert_internal( v, &o );
 
     if ( op != nullptr )
     {
