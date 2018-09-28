@@ -117,37 +117,18 @@ namespace detail
 		GET_VALUE_WITH_DEFAULT( member_id, int, -1 );
 		GET_VALUE_WITH_DEFAULT( billing_address_id, int, -1 );
 		GET_VALUE_WITH_DEFAULT( venue_id, int, -1 );
-
 		GET_VALUE( subject, const char* );
 		GET_VALUE_WITH_DEFAULT( description, const char*, "" );
 		GET_VALUE( number, const char* );
-
-		// assert( v["starts_at"].IsString() );
-	    // op->starts_at = v["starts_at"].GetString();
-		//
-		// assert( v["ends_at"].IsString() );
-	    // op->ends_at = v["ends_at"].GetString();
-		//
-		// assert( v["charge_starts_at"].IsString() );
-	    // op->charge_starts_at = v["charge_starts_at"].GetString();
-		//
-		// assert( v["charge_ends_at"].IsString() );
-	    // op->charge_ends_at = v["charge_ends_at"].GetString();
-		//
-		// assert( v["ordered_at"].IsString() );
-	    // op->ordered_at = v["ordered_at"].GetString();
-		//
-		// assert( v["quote_invalid_at"].IsString() );
-	    // op->quote_invalid_at = v["quote_invalid_at"].GetString();
-		//
-		// assert( v["state"].IsInt() );
-	    // op->state = v["state"].GetInt();
-		//
-		// assert( v["state_name"].IsString() );
-	    // op->state_name = v["state_name"].GetString();
-		//
-		// assert( v["status"].IsInt() );
-	    // op->status = v["status"].GetInt();
+		GET_VALUE( starts_at, const char* );
+		GET_VALUE( ends_at, const char* );
+		GET_VALUE_WITH_DEFAULT( charge_starts_at, const char*, "" );
+		GET_VALUE_WITH_DEFAULT( charge_ends_at, const char*, "" );
+		GET_VALUE_WITH_DEFAULT( ordered_at, const char*, "" );
+		GET_VALUE_WITH_DEFAULT( quote_invalid_at, const char*, "" );
+		GET_VALUE( state, int );
+		GET_VALUE( state_name, const char* );
+		GET_VALUE( status, int );
 	}
 }
 
