@@ -2,7 +2,7 @@
 #include <schedule/api/opportunity.hpp>
 #include <schedule/functional.hpp>
 
-#include <network/network.hpp>
+#include <network/NetworkManager.hpp>
 #include <rapidjson/document.h>
 
 #include <assert.h>
@@ -18,11 +18,7 @@ const std::string AUTHTOKEN = "xKC4nNALzixkvovsqmuG";
 
 
 
-static size_t WriteCallback( void *contents, size_t size, size_t nmemb, void *userp )
-{
-    ((std::string*)userp)->append( (char*)contents, size * nmemb );
-    return size * nmemb;
-}
+
 
 bool retrieveOpportunities( std::string& readBuffer,
         std::vector<current_rms::opportunity >* opportunities )
@@ -46,37 +42,35 @@ bool retrieveOpportunities( std::string& readBuffer,
     return -1;
 }
 
-void populateFromServer( std::string endpoint,
+void populateFromServer( network::NetworkManager* mgr,
         std::vector<current_rms::opportunity >* opportunities )
 {
-    std::string readBuffer;
     int32_t page = 1;
 
-    // Set up header
+    // Set up transport layer options.
     network::ParameterList optsList;
     optsList.push_back( std::make_pair( "X-SUBDOMAIN", SUBDOMAIN ) );
     optsList.push_back( std::make_pair( "X-AUTH-TOKEN", AUTHTOKEN ) );
-    network::setupHttpHeader( optsList );
+
+    network::Request request( API_ENDPOINT + OPPORTUNITIES_ENDPOINT, optsList );
+    network::Response* response = nullptr;
 
     do
     {
-        readBuffer.clear();
-
         network::ParameterList paramList;
         paramList.push_back( std::make_pair( "filtermode", "live" ) );
         paramList.push_back( std::make_pair( "view_id", "1" ) );
         paramList.push_back( std::make_pair( "per_page", "50" ) );
         paramList.push_back( std::make_pair( "page", std::to_string( page++ ) ) );
-        network::setUrlAndParameters( API_ENDPOINT + endpoint, paramList );
+        request.setParameters( paramList );
 
-        network::setCallback( WriteCallback, &readBuffer );
-
-        if ( !network::performOperation() )
+        response = mgr->performRequest( &request );
+        if ( !response )
         {
             break;
         }
     }
-    while ( retrieveOpportunities( readBuffer, opportunities ) > 0 );
+    while ( retrieveOpportunities( response->buffer, opportunities ) > 0 );
 }
 
 
@@ -84,9 +78,11 @@ int main( int argc, char* argv[] )
 {
     std::vector<current_rms::opportunity > opportunities;
 
+    network::NetworkManager* mgr = new network::NetworkManager();
+    mgr->init();
+
     // Pull as many opportunities from the server as possible.
-    network::init();
-    populateFromServer( OPPORTUNITIES_ENDPOINT, &opportunities );
+    populateFromServer( mgr, &opportunities );
     std::cout << "Collected Opportunities: " << opportunities.size() << std::endl;
 
     // Calculate the period that were interested in.
@@ -107,6 +103,8 @@ int main( int argc, char* argv[] )
     // Lets see how many we've ended up with.
     std::cout << "Filtered Opportunities: " << filtered.size() << std::endl;
 
-    network::quit();
+    mgr->destroy();
+    delete mgr;
+    
     return 0;
 }
