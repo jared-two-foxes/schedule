@@ -1,11 +1,20 @@
 #ifndef SCHEDULE_JSONHELPER_HPP__
 #define SCHEDULE_JSONHELPER_HPP__
 
+#include <schedule/DateTime.hpp>
 #include <assert.h>
 
 
 template <typename T >
 T json_cast( rapidjson::Value& v );
+
+template <>
+bool json_cast( rapidjson::Value& v )
+{
+    assert( !v.IsNull() );
+    assert( v.IsBool() );
+    return v.GetBool();
+}
 
 template <>
 int json_cast( rapidjson::Value& v )
@@ -31,6 +40,14 @@ const char* json_cast( rapidjson::Value& v )
     return v.GetString();
 }
 
+template <>
+DateTime json_cast( rapidjson::Value& v )
+{
+    assert( !v.IsNull() );
+    assert( v.IsString() );
+    std::string str = v.GetString();
+    return Parse( v.GetString(), "YYYY-MM-DDTHH:MM:SS" );
+}
 
 
 template <typename T >
@@ -65,6 +82,18 @@ const char* json_cast_with_default( rapidjson::Value& v, const char* defaultValu
     if ( v.IsString() )
     {
         return v.GetString();
+    }
+    return defaultValue;
+}
+
+template <>
+DateTime json_cast_with_default( rapidjson::Value& v, DateTime defaultValue )
+{
+    //assert( !v.IsNull() );
+    if ( v.IsString() )
+    {
+        std::string str = v.GetString();
+        return Parse( v.GetString(), "YYYY-MM-DDTHH:MM:SS" );
     }
     return defaultValue;
 }
