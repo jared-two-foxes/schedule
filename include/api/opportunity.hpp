@@ -2,9 +2,7 @@
 #define CURRENTRMS_API_OPPORTUNITY_HPP__
 
 #include <schedule/DateTime.hpp>
-#include <foundation/uuid.hpp>
 #include <rapidjson/document.h>
-
 
 namespace current_rms {
 

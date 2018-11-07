@@ -1,8 +1,8 @@
 
 #include <schedule/api/opportunity.hpp>
-#include <schedule/functional.hpp>
-
 #include <network/NetworkManager.hpp>
+#include <foundation/base/functional.hpp>
+using foundation::filter;
 #include <rapidjson/document.h>
 
 #include <assert.h>
@@ -15,7 +15,6 @@ const std::string API_ENDPOINT = "https://api.current-rms.com/api/v1";
 const std::string SUBDOMAIN = "twofoxesstyling";
 const std::string OPPORTUNITIES_ENDPOINT = "/opportunities";
 const std::string AUTHTOKEN = "xKC4nNALzixkvovsqmuG";
-
 
 
 
@@ -93,18 +92,20 @@ int main( int argc, char* argv[] )
     DateTime week_end = addDays( week_start, 7 );
     printf( "End: %s\n", tostring(week_end).c_str() );
 
+    auto fn = [&]( auto& op ){
+      return (( op.starts_at >= week_start && op.starts_at < week_end )
+          || ( op.ends_at >= week_start && op.ends_at < week_end ));
+    };
+
     // Filter the retrieved opportunities to grab those for the given week.
     std::vector<current_rms::opportunity > filtered =
-        filter( opportunities, [&]( auto& op ){
-            return (( op.starts_at >= week_start && op.starts_at < week_end )
-                || ( op.ends_at >= week_start && op.ends_at < week_end ));
-            });
+        filter( fn, opportunities );
 
     // Lets see how many we've ended up with.
     std::cout << "Filtered Opportunities: " << filtered.size() << std::endl;
 
     mgr->destroy();
     delete mgr;
-    
+
     return 0;
 }
