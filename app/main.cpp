@@ -1,10 +1,10 @@
 
 #include <schedule/api/opportunity.hpp>
 #include <schedule/auth/authenticate.hpp>
-
 #include <network/NetworkManager.hpp>
 #include <foundation/base/functional.hpp>
-using foundation::filter;
+#include <foundation/strings/strcat.hpp>
+
 #include <rapidjson/document.h>
 
 #include <assert.h>
@@ -13,7 +13,7 @@ using foundation::filter;
 #include <vector>
 
 using namespace schedule;
-
+using namespace foundation;
 
 const std::string API_ENDPOINT = "https://api.current-rms.com/api/v1";
 const std::string SUBDOMAIN = "twofoxesstyling";
@@ -123,8 +123,11 @@ int main( int argc, char* argv[] )
       kDefaultTokenUri
     };
 
+    string scopes = StrCat("email ",
+      "https://www.googleapis.com/auth/calendar" );
+
     oauth2::Credential credential;
-    googleapi::util::Status status = authenticate( client_spec, &credential );
+    googleapi::util::Status status = authenticate( client_spec, scopes, &credential );
     if (!status.ok()) {
       // Fail!!
       return -1;

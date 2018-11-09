@@ -39,7 +39,7 @@ struct ClientSpec
 }
 
 googleapi::util::Status authenticate( /*transportlayer* transport,*/
-  oauth2::ClientSpec& spec, oauth2::Credential* credential );
+  oauth2::ClientSpec& spec, std::string scopes, oauth2::Credential* credential );
 
 }
 

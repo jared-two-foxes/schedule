@@ -9,21 +9,14 @@ using network::EscapeForUrl;
 using foundation::StrCat;
 
 #include <string>
-#include <iostream>
-
 using std::string;
-
-
-// ------------
-// static data!
+#include <iostream>
 
 using googleapi::client::StatusCanceled;
 using googleapi::client::StatusInvalidArgument;
 using googleapi::client::StatusOk;
 
-
-
-static googleapi::util::Status ValidateUserName(const string& name)
+googleapi::util::Status ValidateUserName(const string& name)
 {
   if (name.find("/") != string::npos)
   {
@@ -39,7 +32,7 @@ static googleapi::util::Status ValidateUserName(const string& name)
 
 
 
-googleapi::util::Status schedule::authenticate( oauth2::ClientSpec& spec, oauth2::Credential* credential )
+googleapi::util::Status schedule::authenticate( oauth2::ClientSpec& spec, std::string scopes, oauth2::Credential* credential )
 {
     std::cout
         << std::endl
@@ -57,14 +50,6 @@ googleapi::util::Status schedule::authenticate( oauth2::ClientSpec& spec, oauth2
         if (!status.ok()) {
             return status;
         }
-    }
-
-    string actual_scopes;
-    string scopes = "https://www.googleapis.com/auth/calendar";
-    if ( !(scopes.find("email ") == 0) && scopes.find(" email") == string::npos) {
-        // Add "email" scope if it isnt already present
-        actual_scopes = StrCat("email ", scopes);
-        scopes = actual_scopes;
     }
 
     // I'm going to assume these lines are related to glog
@@ -87,15 +72,13 @@ googleapi::util::Status schedule::authenticate( oauth2::ClientSpec& spec, oauth2
     if ( authorization_code.empty() ) {
         return StatusCanceled("Canceled");
     }
+
     string content =
         StrCat("code=", EscapeForUrl(authorization_code),
                "&client_id=", EscapeForUrl(spec.client_id_),
                "&client_secret=", EscapeForUrl(spec.client_secret_),
                "&redirect_uri=", EscapeForUrl(spec.redirect_uri_),
                "&grant_type=authorization_code");
-
-    std::cout << "This is the code string that we are about to send back to google.";
-    std::cout << content << std::endl;
 
     /*
     std::unique_ptr<HttpRequest> request(
