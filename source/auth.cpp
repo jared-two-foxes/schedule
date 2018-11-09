@@ -1,5 +1,6 @@
 
 #include <schedule/api/status.hpp>
+#include <schedule/auth/authenticate.hpp>
 #include <schedule/client/status.hpp>
 
 #include <network/uri_utils.hpp>
@@ -13,52 +14,12 @@ using foundation::StrCat;
 using std::string;
 
 
-/*
-// Make OAuth flow from client secret path
-// Set default scopes [CalendarService::SCOPES::CALENDAR; "https://www.googleapis.com/auth/calendar"] Note that the scopes and service are a seperate "server" vs "client" implementation.
-// Set redirect uri (kOutOfBandUrl)
-// Set Authorization code callback.  ProptShellForAuthorizationCode.
-
-// Obtains an email from terminal
-    // Validate username if entered.  Is just a regex style validation
-// RefreshCredentialWithOptions  where the option presented is the email.
-    // if refresh token exists do that flow.
-    // else
-        // authorization_code_callback(actual_options, &auth_code);
-        // PerformExchangeAuthorizationCode(auth_code, options, credential);
-        //
-
-
-
-
-// this is how we handle not having the authorization code callback?
-if (!authorization_code_callback_.get()) {
-    const char error[] = "No prompting mechanism provided to get authorization";
-    LOG(ERROR) << error;
-    return StatusUnimplemented(error);
-}
-
 // ------------
 // static data!
-
-const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
-const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
-const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
-
-const char kOutOfBandUrl[] = "urn:ietf:wg:oauth:2.0:oob";
-const char kGoogleAccountsOauth2Url[] = "https://accounts.google.com/o/oauth2";
-*/
-
-
-// ----
-// Strip it down.
-
 
 using googleapi::client::StatusCanceled;
 using googleapi::client::StatusInvalidArgument;
 using googleapi::client::StatusOk;
-
-
 
 
 const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
@@ -82,7 +43,7 @@ static googleapi::util::Status ValidateUserName(const string& name)
 
 
 
-googleapi::util::Status auth()
+googleapi::util::Status schedule::authenticate( const std::string& client_secret_file )
 {
     std::cout
         << std::endl
@@ -114,9 +75,9 @@ googleapi::util::Status auth()
     // CHECK(!scopes.empty());
     // CHECK(!client_spec_.client_id().empty()) << "client_id not set";
 
-    // All of these are from the client_spec_  or secret file?
-    string client_id;
-    string client_secret;
+    // All of these are from secret file which isn't currently in use?
+    string client_id = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
+    string client_secret = "rzlhuPrFOwNxXMbC_Ed8AK_L";
     const string auth_uri = kDefaultAuthUri;
     const string redirect_uri = kOutOfBandUrl;
     const string revoke_uri = kDefaultRevokeUri;
@@ -152,6 +113,9 @@ googleapi::util::Status auth()
                "&client_secret=", EscapeForUrl(client_secret),
                "&redirect_uri=", EscapeForUrl(redirect_uri),
                "&grant_type=authorization_code");
+
+    std::cout << "This is the code string that we are about to send back to google.";
+    std::cout << content << std::endl;
 
     /*
     std::unique_ptr<HttpRequest> request(

@@ -1,5 +1,7 @@
 
 #include <schedule/api/opportunity.hpp>
+#include <schedule/auth/authenticate.hpp>
+
 #include <network/NetworkManager.hpp>
 #include <foundation/base/functional.hpp>
 using foundation::filter;
@@ -9,6 +11,8 @@ using foundation::filter;
 #include <iostream>
 #include <string>
 #include <vector>
+
+using namespace schedule;
 
 
 const std::string API_ENDPOINT = "https://api.current-rms.com/api/v1";
@@ -103,6 +107,8 @@ int main( int argc, char* argv[] )
 
     // Lets see how many we've ended up with.
     std::cout << "Filtered Opportunities: " << filtered.size() << std::endl;
+
+    authenticate( "client_secret.json" );
 
     mgr->destroy();
     delete mgr;
