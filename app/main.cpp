@@ -20,7 +20,12 @@ const std::string SUBDOMAIN = "twofoxesstyling";
 const std::string OPPORTUNITIES_ENDPOINT = "/opportunities";
 const std::string AUTHTOKEN = "xKC4nNALzixkvovsqmuG";
 
-
+const char kClientId[] = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
+const char kClientSecret[] = "rzlhuPrFOwNxXMbC_Ed8AK_L";
+const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
+const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
+const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
+const char kOutOfBandUrl[] = "urn:ietf:wg:oauth:2.0:oob";
 
 
 bool retrieveOpportunities( std::string& readBuffer,
@@ -108,7 +113,23 @@ int main( int argc, char* argv[] )
     // Lets see how many we've ended up with.
     std::cout << "Filtered Opportunities: " << filtered.size() << std::endl;
 
-    authenticate( "client_secret.json" );
+    // All of these are from secret file which isn't currently in use?
+    oauth2::ClientSpec client_spec{
+      kClientId,
+      kClientSecret,
+      kDefaultAuthUri,
+      kOutOfBandUrl,
+      kDefaultRevokeUri,
+      kDefaultTokenUri
+    };
+
+    oauth2::Credential credential;
+    googleapi::util::Status status = authenticate( client_spec, &credential );
+    if (!status.ok()) {
+      // Fail!!
+      return -1;
+    }
+
 
     mgr->destroy();
     delete mgr;

@@ -22,10 +22,6 @@ using googleapi::client::StatusInvalidArgument;
 using googleapi::client::StatusOk;
 
 
-const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
-const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
-const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
-const char kOutOfBandUrl[] = "urn:ietf:wg:oauth:2.0:oob";
 
 static googleapi::util::Status ValidateUserName(const string& name)
 {
@@ -43,7 +39,7 @@ static googleapi::util::Status ValidateUserName(const string& name)
 
 
 
-googleapi::util::Status schedule::authenticate( const std::string& client_secret_file )
+googleapi::util::Status schedule::authenticate( oauth2::ClientSpec& spec, oauth2::Credential* credential )
 {
     std::cout
         << std::endl
@@ -75,28 +71,12 @@ googleapi::util::Status schedule::authenticate( const std::string& client_secret
     // CHECK(!scopes.empty());
     // CHECK(!client_spec_.client_id().empty()) << "client_id not set";
 
-    // All of these are from secret file which isn't currently in use?
-    string client_id = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
-    string client_secret = "rzlhuPrFOwNxXMbC_Ed8AK_L";
-    const string auth_uri = kDefaultAuthUri;
-    const string redirect_uri = kOutOfBandUrl;
-    const string revoke_uri = kDefaultRevokeUri;
-    const string token_uri = kDefaultTokenUri;
-
-
-    // // credential
-    // string access_token_;
-    // string refresh_token_;
-    // int64 expiration_timestamp_secs_;
-    // string email_;
-    // bool email_verified_;
-
     string url =
-        StrCat(auth_uri,
-                "?client_id=", EscapeForUrl(client_id),
-                "&redirect_uri=", EscapeForUrl(redirect_uri),
-                "&scope=", EscapeForUrl(scopes),
-                "&response_type=code");
+        StrCat(spec.auth_uri_,
+               "?client_id=", EscapeForUrl(spec.client_id_),
+               "&redirect_uri=", EscapeForUrl(spec.redirect_uri_),
+               "&scope=", EscapeForUrl(scopes),
+               "&response_type=code");
 
     std::cout << "Enter the following URL into a browser:\n" << url << std::endl;
     std::cout << std::endl;
@@ -109,9 +89,9 @@ googleapi::util::Status schedule::authenticate( const std::string& client_secret
     }
     string content =
         StrCat("code=", EscapeForUrl(authorization_code),
-               "&client_id=", EscapeForUrl(client_id),
-               "&client_secret=", EscapeForUrl(client_secret),
-               "&redirect_uri=", EscapeForUrl(redirect_uri),
+               "&client_id=", EscapeForUrl(spec.client_id_),
+               "&client_secret=", EscapeForUrl(spec.client_secret_),
+               "&redirect_uri=", EscapeForUrl(spec.redirect_uri_),
                "&grant_type=authorization_code");
 
     std::cout << "This is the code string that we are about to send back to google.";
