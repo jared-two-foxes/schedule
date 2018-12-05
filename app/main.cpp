@@ -1,7 +1,11 @@
 
 #include <schedule/api/opportunity.hpp>
-#include <schedule/auth/authenticate.hpp>
-#include <network/NetworkManager.hpp>
+#include <network/network.hpp>
+#include <network/status.hpp>
+#include <network/auth/authenticate.hpp>
+#include <network/transport/response.hpp>
+#include <network/transport/router.hpp>
+#include <network/transport/router_locator.hpp>
 #include <foundation/base/functional.hpp>
 #include <foundation/strings/strcat.hpp>
 
@@ -12,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using namespace schedule;
+using namespace network;
 using namespace foundation;
 
 namespace currentrms {
@@ -55,35 +59,106 @@ bool retrieveOpportunities( std::string& readBuffer,
     return -1;
 }
 
-void populateFromServer( network::NetworkManager* mgr,
+void populateFromServer( Router* router,
         std::vector<current_rms::opportunity >* opportunities )
 {
     int32_t page = 1;
+    network::util::Status status;
 
     // Set up transport layer options.
     network::ParameterList optsList;
     optsList.push_back(std::make_pair("X-SUBDOMAIN", currentrms::kSubdomain ));
     optsList.push_back(std::make_pair("X-AUTH-TOKEN", currentrms::kAuthToken ));
 
-    network::Request request( currentrms::kOpportunitiesUri, optsList );
-    network::Response* response = nullptr;
+    network::Request request;
+    request.uri_ = currentrms::kOpportunitiesUri;
+    request.options_ = optsList;
+
+    network::Response response;
 
     do
     {
-        network::ParameterList paramList;
-        paramList.push_back( std::make_pair( "filtermode", "live" ) );
-        paramList.push_back( std::make_pair( "view_id", "1" ) );
-        paramList.push_back( std::make_pair( "per_page", "50" ) );
-        paramList.push_back( std::make_pair( "page", std::to_string( page++ ) ) );
-        request.setParameters( paramList );
+        request.parameters_.push_back( std::make_pair( "filtermode", "live" ) );
+        request.parameters_.push_back( std::make_pair( "view_id", "1" ) );
+        request.parameters_.push_back( std::make_pair( "per_page", "50" ) );
+        request.parameters_.push_back( std::make_pair( "page", std::to_string( page++ ) ) );
 
-        response = mgr->performRequest( &request );
-        if ( !response )
+        status = router->perform( request, &response );
+        if ( !status.ok() )
         {
             break;
         }
     }
-    while ( retrieveOpportunities( response->buffer, opportunities ) > 0 );
+    while ( retrieveOpportunities( response.buffer_, opportunities ) > 0 );
+}
+
+network::util::Status authenticateGoogleapis( network::Router* router )
+{
+    network::Request request;
+    network::Response response;
+    network::util::Status status;
+
+    // All of these are from secret file which isn't currently in use?
+    oauth2::ClientSpec client_spec{
+        googleapis::kClientId,
+        googleapis::kClientSecret,
+        googleapis::kDefaultAuthUri,
+        googleapis::kOutOfBandUrl,
+        googleapis::kDefaultRevokeUri,
+        googleapis::kDefaultTokenUri
+    };
+
+    string scopes = StrCat("email ",
+        googleapis::kCalendarScope );
+
+    status = network::oauth2::requestAuth( client_spec, scopes, &request );
+    if ( !status.ok() ) {
+        return status;
+    }
+
+    std::cout << "Enter the following URL into a browser:\n" << request.uri_ << std::endl;
+    std::cout << std::endl;
+    std::cout << "Enter the browser's response to confirm authorization: ";
+
+    string authorization_code;
+    std::cin >> authorization_code;
+    if ( authorization_code.empty() ) {
+        return network::util::StatusCanceled("Canceled");
+    }
+
+    oauth2::Credential credential;
+    status = network::oauth2::confirmAuth( client_spec, scopes, &request );
+    if ( !status.ok() ) {
+        return status;
+    }
+
+    status = router->perform( request, &response );
+    //@todo: Check the response?
+
+    /*
+    std::unique_ptr<HttpRequest> request(
+        transport_->NewHttpRequest(HttpRequest::POST));
+    if (options.timeout_ms > 0) {
+        request->mutable_options()->set_timeout_ms(options.timeout_ms);
+    }
+    request->set_url(client_spec_.token_uri());
+    request->set_content_type(HttpRequest::ContentType_FORM_URL_ENCODED);
+    request->set_content_reader(NewUnmanagedInMemoryDataReader(content));
+
+    networks::util::Status status = request->Execute();
+    if (status.ok()) {
+    if (status.ok() && check_email_ && !options.email.empty()) {
+        status = credential->Update(request->response()->body_reader());
+            if (options.email != credential->email()) {
+                status = StatusUnknown(
+                    StrCat("Credential email address mismatch. Expected [",
+                        options.email, "] but got [", credential->email(), "]"));
+                credential->Clear();
+            }
+        }
+    }*/
+
+    return status;
 }
 
 
@@ -91,11 +166,11 @@ int main( int argc, char* argv[] )
 {
     std::vector<current_rms::opportunity > opportunities;
 
-    network::NetworkManager* mgr = new network::NetworkManager();
-    mgr->init();
+    network::init();
+    network::Router* router = network::RouterLocator::getRouter();
 
     // Pull as many opportunities from the server as possible.
-    populateFromServer( mgr, &opportunities );
+    populateFromServer( router, &opportunities );
     std::cout << "Collected Opportunities: " << opportunities.size() << std::endl;
 
     // Calculate the period that were interested in.
@@ -118,28 +193,9 @@ int main( int argc, char* argv[] )
     // Lets see how many we've ended up with.
     std::cout << "Filtered Opportunities: " << filtered.size() << std::endl;
 
-    // All of these are from secret file which isn't currently in use?
-    oauth2::ClientSpec client_spec{
-        googleapis::kClientId,
-        googleapis::kClientSecret,
-        googleapis::kDefaultAuthUri,
-        googleapis::kOutOfBandUrl,
-        googleapis::kDefaultRevokeUri,
-        googleapis::kDefaultTokenUri
-    };
+    authenticateGoogleapis(router);
 
-    string scopes = StrCat("email ",
-        googleapis::kCalendarScope );
-
-    oauth2::Credential credential;
-    googleapi::util::Status status = authenticate( client_spec, scopes, &credential );
-    if (!status.ok()) {
-      // Fail!!
-      return -1;
-    }
-
-    mgr->destroy();
-    delete mgr;
+    network::destroy();
 
     return 0;
 }
