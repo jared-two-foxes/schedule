@@ -1,11 +1,13 @@
 
 #include <schedule/api/opportunity.hpp>
+
 #include <network/network.hpp>
 #include <network/status.hpp>
 #include <network/auth/authenticate.hpp>
 #include <network/transport/response.hpp>
 #include <network/transport/router.hpp>
 #include <network/transport/router_locator.hpp>
+
 #include <foundation/base/functional.hpp>
 #include <foundation/strings/strcat.hpp>
 
@@ -83,6 +85,7 @@ void populateFromServer( Router* router,
         request.parameters_.push_back( std::make_pair( "per_page", "50" ) );
         request.parameters_.push_back( std::make_pair( "page", std::to_string( page++ ) ) );
 
+        response.buffer_.clear();
         status = router->perform( request, &response );
         if ( !status.ok() )
         {
