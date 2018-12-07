@@ -6,10 +6,10 @@
 
 
 template <typename T >
-T json_cast( rapidjson::Value& v );
+inline T json_cast( rapidjson::Value& v );
 
 template <>
-bool json_cast( rapidjson::Value& v )
+inline bool json_cast( rapidjson::Value& v )
 {
     assert( !v.IsNull() );
     assert( v.IsBool() );
@@ -17,7 +17,7 @@ bool json_cast( rapidjson::Value& v )
 }
 
 template <>
-int json_cast( rapidjson::Value& v )
+inline int json_cast( rapidjson::Value& v )
 {
     assert( !v.IsNull() );
     assert( v.IsInt() );
@@ -25,7 +25,7 @@ int json_cast( rapidjson::Value& v )
 }
 
 template <>
-float json_cast( rapidjson::Value& v )
+inline float json_cast( rapidjson::Value& v )
 {
     assert( !v.IsNull() );
     assert( v.IsFloat() );
@@ -33,7 +33,7 @@ float json_cast( rapidjson::Value& v )
 }
 
 template <>
-const char* json_cast( rapidjson::Value& v )
+inline const char* json_cast( rapidjson::Value& v )
 {
     assert( !v.IsNull() );
     assert( v.IsString() );
@@ -41,7 +41,7 @@ const char* json_cast( rapidjson::Value& v )
 }
 
 template <>
-DateTime json_cast( rapidjson::Value& v )
+inline DateTime json_cast( rapidjson::Value& v )
 {
     assert( !v.IsNull() );
     assert( v.IsString() );
@@ -51,10 +51,10 @@ DateTime json_cast( rapidjson::Value& v )
 
 
 template <typename T >
-T json_cast_with_default( rapidjson::Value& v, T defaultValue );
+inline T json_cast_with_default( rapidjson::Value& v, T defaultValue );
 
 template <>
-int json_cast_with_default( rapidjson::Value& v, int defaultValue )
+inline int json_cast_with_default( rapidjson::Value& v, int defaultValue )
 {
     //assert( !v.IsNull() );
     if ( v.IsInt() )
@@ -65,7 +65,7 @@ int json_cast_with_default( rapidjson::Value& v, int defaultValue )
 }
 
 template <>
-float json_cast_with_default( rapidjson::Value& v, float defaultValue )
+inline float json_cast_with_default( rapidjson::Value& v, float defaultValue )
 {
     //assert( !v.IsNull() );
     if ( v.IsFloat() )
@@ -76,7 +76,7 @@ float json_cast_with_default( rapidjson::Value& v, float defaultValue )
 }
 
 template <>
-const char* json_cast_with_default( rapidjson::Value& v, const char* defaultValue )
+inline const char* json_cast_with_default( rapidjson::Value& v, const char* defaultValue )
 {
     //assert( !v.IsNull() );
     if ( v.IsString() )
@@ -87,7 +87,7 @@ const char* json_cast_with_default( rapidjson::Value& v, const char* defaultValu
 }
 
 template <>
-DateTime json_cast_with_default( rapidjson::Value& v, DateTime defaultValue )
+inline DateTime json_cast_with_default( rapidjson::Value& v, DateTime defaultValue )
 {
     //assert( !v.IsNull() );
     if ( v.IsString() )

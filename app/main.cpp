@@ -1,5 +1,6 @@
 
 #include <schedule/api/opportunity.hpp>
+#include <schedule/jsonHelper.hpp>
 
 #include <network/network.hpp>
 #include <network/status.hpp>
@@ -101,6 +102,8 @@ network::util::Status authenticateGoogleapis( network::Router* router )
     network::Response response;
     network::util::Status status;
 
+    request.options_.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded"));
+
     // All of these are from secret file which isn't currently in use?
     oauth2::ClientSpec client_spec{
         googleapis::kClientId,
@@ -116,6 +119,7 @@ network::util::Status authenticateGoogleapis( network::Router* router )
 
     status = network::oauth2::requestAuth( client_spec, scopes, &request );
     if ( !status.ok() ) {
+        std::cout << status.ToString() << std::endl;
         return status;
     }
 
@@ -126,17 +130,32 @@ network::util::Status authenticateGoogleapis( network::Router* router )
     string authorization_code;
     std::cin >> authorization_code;
     if ( authorization_code.empty() ) {
+        std::cout << status.ToString() << std::endl;
         return network::util::StatusCanceled("Canceled");
     }
 
-    oauth2::Credential credential;
-    status = network::oauth2::confirmAuth( client_spec, scopes, &request );
+    status = network::oauth2::confirmAuth( client_spec, authorization_code, &request );
     if ( !status.ok() ) {
+        std::cout << status.ToString() << std::endl;
         return status;
     }
 
     status = router->perform( request, &response );
+
     //@todo: Check the response?
+    oauth2::Credential credential;
+    if (status.ok()) {
+        // update credential with output from the response
+
+        rapidjson::Document document;
+        document.Parse( response.buffer_.c_str(), response.buffer_.length() );
+
+        credential.access_token_ = json_cast<const char*>( document["access_token"] );
+        credential.refresh_token_ = json_cast<const char*>( document["refresh_token"] );
+        // credential.expiration_timestamp_secs_; /*int64_t*/
+    }
+
+
 
     /*
     std::unique_ptr<HttpRequest> request(

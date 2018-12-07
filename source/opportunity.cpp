@@ -46,8 +46,8 @@ void convert_internal( rapidjson::Value& v, opportunity* op )
 
 current_rms::opportunity current_rms::convert( rapidjson::Value& v )
 {
-	using namespace current_rms;
-    opportunity o = opportunity {};
-    detail::convert_internal( v, &o );
-    return o;
+		using namespace current_rms;
+	  opportunity o = opportunity {};
+	  detail::convert_internal( v, &o );
+	  return o;
 }
