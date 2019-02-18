@@ -2,6 +2,7 @@
 #define SCHEDULE_JSONHELPER_HPP__
 
 #include <schedule/DateTime.hpp>
+#include <rapidjson/document.h>
 #include <assert.h>
 
 

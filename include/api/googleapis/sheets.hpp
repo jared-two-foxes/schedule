@@ -120,7 +120,29 @@ namespace sheets {
   "message": string
 }
 
+This is all well and good but realistically we're not all that interested in
+mirroring the actual message format for any internal call.  What we need to think
+about is how we want to store sheet information and then what we need to do to
+convert it to be sent to the google server.
 
+So what are we trying to do!
+
+
+
+Pull a list of opportunities from the current-rms server.
+Filter list based on some requirements.
+Determine how to layout the updated schedule based on the imported data.
+Build json structure for request body to send to the google servers.
+Send to server.
+Job done.
+
+Potentially a smart move would be to mimic something along the lines of the
+terminal render functionality to build up a json object ready to be sent and
+what would that even look like?  I wonder if there is a way to extend that
+functionality or if they are completely unrelated.
+
+{header}
+{day}{client}{contact}{time}{venue}{who}
 
  *
  */
