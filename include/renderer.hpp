@@ -2,6 +2,7 @@
 #define SCHDEULE_RENDERER_HPP__
 
 #include <terminal/terminal.hpp>
+#include <terminal/components/component.hpp>
 #include <vector>
 
 struct Opportunity;
@@ -12,15 +13,23 @@ class Renderer
 ///
 {
 private:
-  int32_t m_maxElements = 20;
+  const int32_t m_maxElements = 20;
+
+  framework::Component m_layout;
   int32_t m_currentIndex = 0;
 
 public:
-  framework::terminal renderSingleFrame( framework::terminal const & terminal,
-    std::vector<Opportunity > const & opportunities );
+  Renderer();
+
+  void clear();
+
+  void addLine( std::string const & line );
+  void addOpportunities( std::vector<Opportunity > const & opportunities );
 
   void advanceElements( int32_t elements );
   void advanceElements();
+
+  framework::terminal present( framework::terminal const & terminal );
 
 };
 

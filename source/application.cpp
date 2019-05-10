@@ -15,6 +15,7 @@
 
 #include <rapidjson/document.h>
 
+
 using foundation::StrCat;
 
 
@@ -28,8 +29,52 @@ namespace googleapis {
   const char kCalendarScope[] = "https://www.googleapis.com/auth/calendar";
 }
 
+
 std::string payload;
 network::oauth2::Credential credential;
+
+bool isValid( network::oauth2::Credential const & credential ) {
+  return !credential.access_token_.empty();
+}
+
+std::string announceAutheticationRequest()
+{
+  // All of these are from secret file which isn't currently in use?
+  network::oauth2::ClientInfo client_spec{
+    googleapis::kClientId,
+    googleapis::kClientSecret
+  };
+
+  std::string scopes = StrCat("email ",
+    googleapis::kCalendarScope );
+
+  payload = network::oauth2::requestAuth( googleapis::kDefaultAuthUri, client_spec, googleapis::kOutOfBandUrl, scopes );
+
+  return payload;
+}
+
+void obtainAuthorizationToken( std::string const & authorization_code )
+{
+  network::oauth2::ClientInfo client_spec{
+    googleapis::kClientId,
+    googleapis::kClientSecret
+  };
+
+  std::vector<std::pair<std::string, std::string > > options;
+  options.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded") );
+
+  std::string content = network::oauth2::confirmAuth( client_spec, googleapis::kOutOfBandUrl, authorization_code );
+
+  payload = RestService::Send( RestService::GET, googleapis::kDefaultTokenUri, options, content );
+
+  rapidjson::Document document;
+  document.Parse( payload.c_str(), payload.length() );
+
+  // update credential with output from the response
+  credential.access_token_ = json_cast<const char*>( document["access_token"] );
+  credential.refresh_token_ = json_cast<const char*>( document["refresh_token"] );
+  // credential.expiration_timestamp_secs_; /*int64_t, document["expires_in"]*/
+}
 
 Application::Application() :
   quit_(false)
@@ -45,6 +90,8 @@ void Application::setup()
   network::init();
   RestService::SetTransportLayer( network::RouterLocator::getRouter() );
   initDispatcher();
+
+  announceAutheticationRequest();
 }
 
 void Application::run()
@@ -56,7 +103,13 @@ void Application::run()
 
   while (!quit_)
   {
-    terminal_ = renderer_.renderSingleFrame( terminal_, displayList_ );
+    if ( !isValid(credential) ) {
+      renderer_.addLine( payload );
+      renderer_.addLine( " " );
+    }
+    renderer_.addOpportunities( displayList_ );
+
+    terminal_ = renderer_.present( terminal_ );
 
     // Grab the next operation from the command line.
     getline( std::cin, line );
@@ -105,10 +158,13 @@ void Application::initDispatcher()
     renderer_.advanceElements(num);
   };
 
+  // Authentication functions
+  auto authorize_fn = [this](const std::vector<std::string>& args) {
+    assert( args.size() > 1 );
+    obtainAuthorizationToken( args[1] );
+  };
+  
   // google Sheets functions
-  // auto authorize_fn = [this](const std::vector<std::string>& args) {
-  //   announceAutheticationRequest();
-  // };
   // auto push_fn = [this](const std::vector<std::string >& args) {
   //   pushToGoogleSheet();
   // };
@@ -122,51 +178,11 @@ void Application::initDispatcher()
         {"next", next_fn},
         {"prev", prev_fn},
         {"filter", filter_fn},
-        //{"auth", authorize_fn},
+        {"auth", authorize_fn},
         //{"push", push_fn}
       }};
 }
 
-// void Application::announceAutheticationRequest()
-// {
-//   // All of these are from secret file which isn't currently in use?
-//   network::oauth2::ClientInfo client_spec{
-//     googleapis::kClientId,
-//     googleapis::kClientSecret
-//   };
-//
-//   std::string scopes = StrCat("email ",
-//     googleapis::kCalendarScope );
-//
-//   payload = network::oauth2::requestAuth( googleapis::kDefaultAuthUri, client_spec, googleapis::kOutOfBandUrl, scopes );
-// }
-//
-// void Application::obtainAuthorizationToken( std::string const & authorization_code )
-// {
-//   network::oauth2::ClientInfo client_spec{
-//     googleapis::kClientId,
-//     googleapis::kClientSecret
-//   };
-//
-//   std::vector<std::pair<std::string, std::string > > options;
-//   options.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded") );
-//
-//   std::string content = network::oauth2::confirmAuth( client_spec, googleapis::kOutOfBandUrl, authorization_code );
-//
-//   payload = RestService::Send( RestService::GET, googleapis::kDefaultTokenUri, options, content );
-//
-//   rapidjson::Document document;
-//   document.Parse( payload.c_str(), payload.length() );
-//
-//   // update credential with output from the response
-//   credential.access_token_ = json_cast<const char*>( document["access_token"] );
-//   credential.refresh_token_ = json_cast<const char*>( document["refresh_token"] );
-//   // credential.expiration_timestamp_secs_; /*int64_t, document["expires_in"]*/
-//
-//   // And we're done, revert back to the normal state.
-//   state_ = 0;
-// }
-//
 // void Application::pushToGoogleSheet()
 // {
 //   //TODO: check for google authorization.
