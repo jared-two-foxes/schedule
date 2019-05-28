@@ -2,8 +2,8 @@
 #include <schedule/opportunity.hpp>
 #include <schedule/jsonHelper.hpp>
 
-#define GET_VALUE( name, type ) o.name = json_cast<type>( v[#name] );
-#define GET_VALUE_WITH_DEFAULT( name, type, def ) o.name = json_cast_with_default<type >( v[#name], def );
+#define GET_VALUE( name, type ) o.name = json_cast<type>( v, #name );
+#define GET_VALUE_WITH_DEFAULT( name, type, def ) o.name = json_cast_with_default<type >( v, #name, def );
 
 Opportunity convert( rapidjson::Value& v )
 {

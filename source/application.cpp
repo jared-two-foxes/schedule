@@ -14,7 +14,9 @@
 #include <network/transport/router_locator.hpp>
 
 #include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
 
+#include <fstream>
 
 using foundation::StrCat;
 
@@ -22,6 +24,7 @@ using foundation::StrCat;
 namespace googleapis {
   const char kClientId[] = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
   const char kClientSecret[] = "rzlhuPrFOwNxXMbC_Ed8AK_L";
+  const char kApiKey[]="AIzaSyC2BrDgLTrUKvv4rKHzz_gFlcMTvutIops";
   const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
   const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
   const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
@@ -30,11 +33,139 @@ namespace googleapis {
 }
 
 
-std::string payload;
+// Ini Block.
+
+template <typename T >
+void SaveToIni( std::ostream & os, std::string const & key, T const & value ) 
+{
+  os << key << "=" << value << std::endl;
+}
+
+std::string GetNextLineFromIni( std::istream & is )
+{
+  std::string line;
+  is >> line;
+  return line;
+}
+
+void from_string( std::string const & s, std::string & o )
+{
+  o = s;
+}
+
+void from_string( std::string const & s, int64_t & o ) 
+{
+  o = std::atol( s.c_str() );
+}
+
+template <typename T >
+std::string GetPairFromIni( std::string const & line, T & value )
+{
+  std::vector<std::string > tokens;
+  tokens = foundation::split( line, "=" );
+
+  if ( tokens.size() > 1 ) 
+  {
+    from_string( tokens[1], value );
+  }
+  else 
+  {
+    value = {};
+  }
+
+  return tokens[0];
+}
+
+template <typename T >
+void GetFromIni( std::istream& is, std::string & key, T & value )
+{
+  std::string line = GetNextLineFromIni( is );
+  key = GetPairFromIni( line, value );
+}
+
+
+// Credential Block
+
+constexpr const char * const filename = "config.ini";  // Store the config filename global style
+
 network::oauth2::Credential credential;
 
-bool isValid( network::oauth2::Credential const & credential ) {
-  return !credential.access_token_.empty();
+bool isNull( network::oauth2::Credential const & credential ) 
+{
+  return credential.access_token_.empty();
+}
+
+bool isValid( network::oauth2::Credential const & credential ) 
+{
+  return ( !isNull(credential) && 
+    ( (int64_t)time( nullptr ) < credential.expiration_timestamp_secs_ ) );
+}
+
+// Lets store some of this access shit to disk. Gonna store this ini style cause I'm terrible.
+void storeCredential( std::string const & name, network::oauth2::Credential const & credential ) 
+{
+  std::ofstream fs( filename );
+
+  SaveToIni( fs, StrCat("google", ".", "access_token"), 
+    credential.access_token_ );
+  SaveToIni( fs, StrCat("google", ".", "refresh_token"), 
+    credential.refresh_token_ );
+  SaveToIni( fs, StrCat("google", ".", "valid_till"), 
+    credential.expiration_timestamp_secs_ );
+}
+
+network::oauth2::Credential restoreCredential( /*std::string const & name*/ ) 
+{
+  network::oauth2::Credential c;
+  
+  std::ifstream fs( filename );
+  if (fs.is_open()) 
+  {
+    std::string key;
+    GetFromIni<std::string >( fs, key, c.access_token_ );
+    GetFromIni<std::string >( fs, key, c.refresh_token_ );
+    GetFromIni<int64_t >( fs, key, c.expiration_timestamp_secs_ );
+  }
+
+  return c;
+}
+
+network::oauth2::Credential refreshCredential( network::oauth2::Credential const & old )
+{
+  if ( isValid(old) ) 
+  {
+    return old;
+  }
+
+  network::oauth2::Credential c;
+  
+  std::vector<std::pair<std::string, std::string > > options;
+  options.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded") );
+
+  std::string content = StrCat(
+    "refresh_token=", old.refresh_token_,
+    "&client_id=", googleapis::kClientId,
+    "&client_secret=", googleapis::kClientSecret,
+    "&grant_type=", "refresh_token" );
+
+  std::string payload = RestService::Post( googleapis::kDefaultTokenUri, options, content );
+
+  //@todo: Handle failure of refresh.
+
+  rapidjson::Document document;
+  document.Parse( payload.c_str(), payload.length() );
+
+  // update credential with output from the response
+  c.access_token_ = json_cast<const char*>( document, "access_token" );
+  c.refresh_token_ = old.refresh_token_;
+  int64_t validFor = json_cast<int64_t>( document, "expires_in" );
+  c.expiration_timestamp_secs_ = ((int64_t)time( nullptr )) + validFor; 
+
+  // We need to update the config ini file...
+  storeCredential( "google", credential );
+
+  credential = c; //< Mutation?
+  return c;
 }
 
 std::string announceAutheticationRequest()
@@ -48,9 +179,9 @@ std::string announceAutheticationRequest()
   std::string scopes = StrCat("email ",
     googleapis::kCalendarScope );
 
-  payload = network::oauth2::requestAuth( googleapis::kDefaultAuthUri, client_spec, googleapis::kOutOfBandUrl, scopes );
-
-  return payload;
+  return network::oauth2::requestAuth( 
+    googleapis::kDefaultAuthUri, client_spec, 
+    googleapis::kOutOfBandUrl, scopes );
 }
 
 void obtainAuthorizationToken( std::string const & authorization_code )
@@ -65,15 +196,116 @@ void obtainAuthorizationToken( std::string const & authorization_code )
 
   std::string content = network::oauth2::confirmAuth( client_spec, googleapis::kOutOfBandUrl, authorization_code );
 
-  payload = RestService::Send( RestService::GET, googleapis::kDefaultTokenUri, options, content );
+  std::string payload = RestService::Get( googleapis::kDefaultTokenUri, options, content );
 
   rapidjson::Document document;
   document.Parse( payload.c_str(), payload.length() );
 
   // update credential with output from the response
-  credential.access_token_ = json_cast<const char*>( document["access_token"] );
-  credential.refresh_token_ = json_cast<const char*>( document["refresh_token"] );
-  // credential.expiration_timestamp_secs_; /*int64_t, document["expires_in"]*/
+  credential.access_token_ = json_cast<const char*>( document, "access_token" );
+  credential.refresh_token_ = json_cast<const char*>( document, "refresh_token" );
+  int64_t validFor = json_cast<int64_t>( document, "expires_in" );
+  credential.expiration_timestamp_secs_ = ((int64_t)time( nullptr )) + validFor; 
+
+  //@todo store only if valid?
+  storeCredential( "google", credential );
+}
+
+
+// Google Calendar API Block
+
+void QueryAllCalendars( network::oauth2::Credential const & credential ); 
+void QueryCalendarEvents( network::oauth2::Credential const & credential, std::string const & calendarId ); 
+
+void QueryAllCalendars( network::oauth2::Credential const & credential ) 
+{
+  typedef std::pair<std::string, std::string > StringPair; 
+  typedef StringPair OptionPair;
+
+  assert( isValid(credential) );
+
+  std::string content;
+  std::vector<OptionPair > options;
+  options.push_back( 
+    std::make_pair( 
+      "Authorization", StrCat( "Bearer ", credential.access_token_ ) ) );
+  options.push_back( 
+    std::make_pair(
+      "Accept", "application/json" ) );
+
+  std::string payload = RestService::Get(
+    StrCat(
+      "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+      "?key=", googleapis::kApiKey ), 
+    options, content );
+
+  Log( 10, "\nCalendars\n------\n");
+
+  rapidjson::Document document;
+  document.Parse( payload.c_str(), payload.length() );
+
+  // Grab the list of items
+  rapidjson::Value& items = document["items"];
+  
+  std::string calendarId;
+
+  // Grab each calendar item.
+  for( rapidjson::Value& i : items.GetArray() )
+  {
+    const char* title = json_cast<const char* >( i, "summary" );
+    bool isPrimary = json_cast_with_default( i, "primary", false );
+    Log( 10, "%s%s\n", 
+      title, 
+      isPrimary ? " (*) " : "" );
+
+    if ( isPrimary )
+    {
+      calendarId = json_cast<const char* >( i, "id" );
+    }
+  }
+
+  QueryCalendarEvents( refreshCredential(credential), calendarId );
+}
+
+
+void QueryCalendarEvents( network::oauth2::Credential const & credential, std::string const & calendarId ) 
+{
+  typedef std::pair<std::string, std::string > StringPair; 
+  typedef StringPair OptionPair;
+
+  assert( isValid(credential) );
+
+  Log( 10, "\nEvents\n------\n");
+
+  std::string content;
+  std::vector<OptionPair > options;
+  options.push_back( 
+    std::make_pair( 
+      "Authorization", StrCat( "Bearer ", credential.access_token_ ) ) );
+  options.push_back( 
+    std::make_pair(
+      "Accept", "application/json" ) );
+
+  std::string payload = RestService::Get(
+    StrCat(
+      "https://www.googleapis.com/calendar/v3/calendars/",
+      calendarId,
+      "/events" ), 
+    options, content );
+
+  int breakpoint = 12;
+
+  rapidjson::Document document;
+  document.Parse( payload.c_str(), payload.length() );
+
+  // Grab the list of events
+  rapidjson::Value& events = document["items"];
+
+  // Grab each event and add to the log.
+  for ( rapidjson::Value& v : events.GetArray() )
+  {
+    Log( 2, "%s\n", json_cast<const char* >(v, "summary") );
+  }
 }
 
 Application::Application() :
@@ -91,7 +323,8 @@ void Application::setup()
   RestService::SetTransportLayer( network::RouterLocator::getRouter() );
   initDispatcher();
 
-  announceAutheticationRequest();
+  // lets attempt to load from file.
+  credential = restoreCredential( /*"google"*/ );
 }
 
 void Application::run()
@@ -103,11 +336,17 @@ void Application::run()
 
   while (!quit_)
   {
-    if ( !isValid(credential) ) {
-      renderer_.addLine( payload );
-      renderer_.addLine( " " );
+    if ( isNull(credential) ) 
+    {
+      renderer_.addLine( "Please navigate to the bellow address and follow the onscreen prompts to allow access to the google servers" );
+      std::string address = announceAutheticationRequest();
+      renderer_.addLine( address );
     }
-    renderer_.addOpportunities( displayList_ );
+
+    if ( !displayList_.empty() ) 
+    {
+      renderer_.addOpportunities( displayList_ );
+    }
 
     terminal_ = renderer_.present( terminal_ );
 
@@ -164,10 +403,15 @@ void Application::initDispatcher()
     obtainAuthorizationToken( args[1] );
   };
   
-  // google Sheets functions
+  // Google Sheets functions
   // auto push_fn = [this](const std::vector<std::string >& args) {
   //   pushToGoogleSheet();
   // };
+
+  // Google Calendar functions
+  auto query_fn = [this](std::vector<std::string > const & args ) {
+    QueryAllCalendars( refreshCredential( credential ) );
+  };
 
   // Create the actual dispatcher
   dispatcher_ =
@@ -179,6 +423,7 @@ void Application::initDispatcher()
         {"prev", prev_fn},
         {"filter", filter_fn},
         {"auth", authorize_fn},
+        {"query", query_fn},
         //{"push", push_fn}
       }};
 }
@@ -188,3 +433,4 @@ void Application::initDispatcher()
 //   //TODO: check for google authorization.
 //   //TODO: send data to sheet.
 // }
+

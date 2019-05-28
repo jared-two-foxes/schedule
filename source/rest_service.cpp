@@ -6,31 +6,61 @@
 
 #include <assert.h>
 
-static network::Router* s_router = nullptr;
+using network::Router;
+using network::Response;
+using network::Request;
+using network::HttpMethod;
 
-void RestService::SetTransportLayer( network::Router* router )
+
+static Router* s_router = nullptr;
+
+void RestService::SetTransportLayer( Router* router )
 {
   s_router = router;
 }
 
-std::string RestService::Send( Operation op, std::string const& url,
+
+std::string Process( Request const & request, Response * response )
+{
+  auto status = s_router->perform( request, response );
+  if ( status.ok() )
+  {
+    return response->body_;
+  }
+
+  return std::string();
+}
+
+std::string RestService::Post( std::string const& url,
   std::vector<std::pair<std::string, std::string > > headers,
   std::string const& payload )
 {
   assert ( s_router );
 
-  network::Request request;
-  network::Response response;
+  Request request;
+  Response response;
 
+  request.method_ = HttpMethod::POST;
   request.uri_ = url;
   request.options_ = headers;
   request.content_ = payload;
 
-  auto status = s_router->perform( request, &response );
-  if ( status.ok() )
-  {
-    return response.body_;
-  }
+  return Process( request, &response );
+}
 
-  return std::string();
+std::string RestService::Get( std::string const& url,
+  std::vector<std::pair<std::string, std::string > > headers,
+  std::string const& payload )
+{
+  assert ( s_router );
+
+  Request request;
+  Response response;
+
+  request.method_ = HttpMethod::GET;
+  request.uri_ = url;
+  request.options_ = headers;
+  request.content_ = payload;
+
+  return Process( request, &response );
 }

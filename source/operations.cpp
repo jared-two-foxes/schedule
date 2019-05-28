@@ -58,7 +58,7 @@ namespace operations {
 
       // perform network operation.
       Log( 0, "sending request\n" );
-    	std::string payload = RestService::Send( RestService::GET, uri, options, content );
+    	std::string payload = RestService::Get( uri, options, content );
 
       // Parse response
       std::size_t n = parseOpportunitiesResponse( payload, &opportunities );

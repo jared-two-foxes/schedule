@@ -7,96 +7,120 @@
 
 
 template <typename T >
-inline T json_cast( rapidjson::Value& v );
+inline T json_cast( rapidjson::Value& v, const char* name );
 
 template <>
-inline bool json_cast( rapidjson::Value& v )
+inline bool json_cast( rapidjson::Value& v, const char* name )
 {
-    assert( !v.IsNull() );
-    assert( v.IsBool() );
-    return v.GetBool();
+    assert( v.HasMember( name ) );
+    assert( v[name].IsBool() );
+    return v[name].GetBool();
 }
 
 template <>
-inline int json_cast( rapidjson::Value& v )
+inline int json_cast( rapidjson::Value& v, const char* name )
 {
-    assert( !v.IsNull() );
-    assert( v.IsInt() );
-    return v.GetInt();
+    assert( v.HasMember( name ) );
+    assert( v[name].IsInt() );
+    return v[name].GetInt();
 }
 
 template <>
-inline float json_cast( rapidjson::Value& v )
+inline int64_t json_cast( rapidjson::Value& v, const char* name )
 {
-    assert( !v.IsNull() );
-    assert( v.IsFloat() );
-    return v.GetFloat();
+    assert( v.HasMember( name ) );
+    assert( v[name].IsInt64() );
+    return v[name].GetInt64();
 }
 
 template <>
-inline const char* json_cast( rapidjson::Value& v )
+inline float json_cast( rapidjson::Value& v, const char* name )
 {
-    assert( !v.IsNull() );
-    assert( v.IsString() );
-    return v.GetString();
+    assert( v.HasMember( name ) );
+    assert( v[name].IsFloat() );
+    return v[name].GetFloat();
 }
 
 template <>
-inline DateTime json_cast( rapidjson::Value& v )
+inline const char* json_cast( rapidjson::Value& v, const char* name )
 {
-    assert( !v.IsNull() );
-    assert( v.IsString() );
-    std::string str = v.GetString();
-    return Parse( v.GetString(), "YYYY-MM-DDTHH:MM:SS" );
+    assert( v.HasMember( name ) );
+    assert( v[name].IsString() );
+    return v[name].GetString();
+}
+
+template <>
+inline DateTime json_cast( rapidjson::Value& v, const char* name )
+{
+    assert( v.HasMember( name ) );
+    assert( v[name].IsString() );
+    return Parse( v[name].GetString(), "YYYY-MM-DDTHH:MM:SS" );
 }
 
 
 template <typename T >
-inline T json_cast_with_default( rapidjson::Value& v, T defaultValue );
+inline T json_cast_with_default( rapidjson::Value& v, const char* name, T defaultValue );
 
 template <>
-inline int json_cast_with_default( rapidjson::Value& v, int defaultValue )
+inline bool json_cast_with_default( rapidjson::Value& v, const char* name, bool defaultValue )
 {
-    //assert( !v.IsNull() );
-    if ( v.IsInt() )
+    if ( v.HasMember( name ) && v[name].IsBool() ) 
     {
-        return v.GetInt();
+        return v[name].GetBool();
     }
     return defaultValue;
 }
 
 template <>
-inline float json_cast_with_default( rapidjson::Value& v, float defaultValue )
+inline int json_cast_with_default( rapidjson::Value& v, const char* name, int defaultValue )
 {
-    //assert( !v.IsNull() );
-    if ( v.IsFloat() )
+    if ( v.HasMember( name ) && v[name].IsInt() ) 
     {
-        return v.GetFloat();
+        return v[name].GetInt();
     }
     return defaultValue;
 }
 
 template <>
-inline const char* json_cast_with_default( rapidjson::Value& v, const char* defaultValue )
+inline int64_t json_cast_with_default( rapidjson::Value& v, const char* name, int64_t defaultValue )
 {
-    //assert( !v.IsNull() );
-    if ( v.IsString() )
+    if ( v.HasMember( name ) && v[name].IsInt64() ) 
     {
-        return v.GetString();
+        return v[name].GetInt64();
     }
     return defaultValue;
 }
 
 template <>
-inline DateTime json_cast_with_default( rapidjson::Value& v, DateTime defaultValue )
+inline float json_cast_with_default( rapidjson::Value& v, const char* name, float defaultValue )
 {
-    //assert( !v.IsNull() );
-    if ( v.IsString() )
+    if ( v.HasMember( name ) && v[name].IsFloat() ) 
     {
-        std::string str = v.GetString();
-        return Parse( v.GetString(), "YYYY-MM-DDTHH:MM:SS" );
+        return v[name].GetFloat();
     }
     return defaultValue;
 }
+
+template <>
+inline const char* json_cast_with_default( rapidjson::Value& v, const char* name, const char* defaultValue )
+{
+    if ( v.HasMember( name ) && v[name].IsString() ) 
+    {
+        return v[name].GetString();
+    }
+    return defaultValue;
+}
+
+template <>
+inline DateTime json_cast_with_default( rapidjson::Value& v, const char* name, DateTime defaultValue )
+{
+    if ( v.HasMember( name ) && v[name].IsString() ) 
+    {
+        //@todo: Handle failure to parse...
+        return Parse( v[name].GetString(), "YYYY-MM-DDTHH:MM:SS" );
+    }
+    return defaultValue;
+}
+
 
 #endif // SCHEDULE_JSONHELPER_HPP__

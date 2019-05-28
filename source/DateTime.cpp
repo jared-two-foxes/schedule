@@ -45,6 +45,13 @@ int32_t weekDay( const DateTime& dateTime )
   return tm->tm_wday;
 }
 
+DateTime addSeconds( const DateTime& dateTime, const int32_t& seconds )
+{
+  DateTime out = dateTime;
+  out.SECOND += seconds;
+  return out;
+}
+
 DateTime addDays( const DateTime& dateTime, const int32_t& days )
 {
   DateTime out = dateTime;

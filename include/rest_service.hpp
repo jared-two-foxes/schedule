@@ -8,14 +8,15 @@ namespace network { class Router; }
 
 namespace RestService {
 
-enum Operation { POST, GET };
-
 void SetTransportLayer( network::Router* router );
 
-std::string Send( Operation op, std::string const& url,
+std::string Post( std::string const& url,
   std::vector<std::pair<std::string, std::string > > headers,
   std::string const& payload );
 
+std::string Get( std::string const& url,
+  std::vector<std::pair<std::string, std::string > > headers,
+  std::string const& payload );
 
 }
 
