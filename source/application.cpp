@@ -25,12 +25,21 @@ namespace googleapis {
   const char kClientId[] = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
   const char kClientSecret[] = "rzlhuPrFOwNxXMbC_Ed8AK_L";
   const char kApiKey[]="AIzaSyC2BrDgLTrUKvv4rKHzz_gFlcMTvutIops";
+  const char kMapsApiKey[]="AIzaSyD5cje60niMC833wGIJOlu3BsW79TwFVsQ";
   const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
   const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
   const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
   const char kOutOfBandUrl[] = "urn:ietf:wg:oauth:2.0:oob";
   const char kCalendarScope[] = "https://www.googleapis.com/auth/calendar";
 }
+
+
+// Google Maps API block
+int EstimateTravelTime( std::string const & origin, std::string const & destination );
+
+// Google Calendar API Block
+void QueryAllCalendars( network::oauth2::Credential const & credential ); 
+void QueryCalendarEvents( network::oauth2::Credential const & credential, std::string const & calendarId ); 
 
 
 // Ini Block.
@@ -214,9 +223,6 @@ void obtainAuthorizationToken( std::string const & authorization_code )
 
 // Google Calendar API Block
 
-void QueryAllCalendars( network::oauth2::Credential const & credential ); 
-void QueryCalendarEvents( network::oauth2::Credential const & credential, std::string const & calendarId ); 
-
 void QueryAllCalendars( network::oauth2::Credential const & credential ) 
 {
   typedef std::pair<std::string, std::string > StringPair; 
@@ -293,8 +299,6 @@ void QueryCalendarEvents( network::oauth2::Credential const & credential, std::s
       "/events" ), 
     options, content );
 
-  int breakpoint = 12;
-
   rapidjson::Document document;
   document.Parse( payload.c_str(), payload.length() );
 
@@ -307,6 +311,56 @@ void QueryCalendarEvents( network::oauth2::Credential const & credential, std::s
     Log( 2, "%s\n", json_cast<const char* >(v, "summary") );
   }
 }
+
+
+// Google Maps API block
+
+int EstimateTravelTime( std::string const & origin, std::string const & destination )
+{
+  typedef std::pair<std::string, std::string > StringPair; 
+  typedef StringPair OptionPair;
+
+  const std::string url = "https://maps.googleapis.com/maps/api/directions/";    
+  const std::string outputFormat = "json";
+
+  int duration_in_seconds = 0;
+
+  std::string uri = StrCat( url, 
+    outputFormat, "?",
+    "origin=", origin, 
+    "&destination=", destination,
+    "&key=", googleapis::kMapsApiKey )  ;
+
+  std::string content;
+  std::vector<OptionPair > options;
+
+  std::string payload = RestService::Get(
+    uri, options, content );
+
+  //@todo: Handle a failure result?
+
+  // Now lets try to grab the duration from the response.  
+  rapidjson::Document document;
+  document.Parse( payload.c_str(), payload.length() );
+
+  assert( document.HasMember("routes") );
+  rapidjson::Value& routes = document["routes"];
+  assert( routes.IsArray() );
+  rapidjson::Value& route = routes[0];
+
+  assert( route.HasMember("legs") );
+  rapidjson::Value& legs = route["legs"];
+  assert( legs.IsArray() );
+  for ( rapidjson::Value& leg : legs.GetArray() )
+  {
+    assert( leg.HasMember("duration") );
+    rapidjson::Value& duration = leg["duration"];
+    duration_in_seconds += json_cast<int >( duration, "value" );;
+  }
+
+  return ( duration_in_seconds / 60 );
+}
+
 
 Application::Application() :
   quit_(false)
@@ -383,7 +437,14 @@ void Application::initDispatcher()
     displayList_ = masterOpportunitiesList_;
   };
   auto filter_fn = [this](const std::vector<std::string > & args) {
-    displayList_ = filterByWeek( masterOpportunitiesList_, Now() ); // args
+    DateTime date;
+    if ( args.size() >= 2 ) {
+      date = Parse( args[1], "DD/MM" );
+    } 
+    else {
+      date = Now();
+    }
+    displayList_ = filterByWeek( masterOpportunitiesList_, date ); // args
   };
   auto next_fn = [this](const std::vector<std::string > & args) {
     renderer_.advanceElements();
@@ -413,6 +474,13 @@ void Application::initDispatcher()
     QueryAllCalendars( refreshCredential( credential ) );
   };
 
+  // Google Maps functions
+  auto estimate_fn = [this](std::vector<std::string > const & args ) {
+    //auto op = displayList_[0];
+    int time = EstimateTravelTime( "44+Henderson+Valley+Road,Henderson,Auckland", "2+Bellamont+street,Huapai" );
+    int breakpoint = 12;
+  };
+
   // Create the actual dispatcher
   dispatcher_ =
     framework::CommandDispatcher<
@@ -424,6 +492,7 @@ void Application::initDispatcher()
         {"filter", filter_fn},
         {"auth", authorize_fn},
         {"query", query_fn},
+        {"estimate", estimate_fn},
         //{"push", push_fn}
       }};
 }

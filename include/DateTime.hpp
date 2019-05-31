@@ -22,6 +22,7 @@ DateTime makeDateTime( const std::time_t& t );
 DateTime Now();
 
 int32_t weekDay( const DateTime& dateTime );
+int32_t weekDayWithMondayBase( DateTime const & dateTime ); 
 DateTime addSeconds( const DateTime& dateTime, const int32_t& days );
 DateTime addDays( const DateTime& dateTime, const int32_t& days );
 DateTime zeroTime( const DateTime& dateTime );

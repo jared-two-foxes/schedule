@@ -78,7 +78,7 @@ namespace operations {
   std::vector<Opportunity > filterByWeek( std::vector<Opportunity > const & opportunities, DateTime const & dateTime )
   {
     // Calculate the period that were interested in.
-    DateTime week_start = addDays( zeroTime( dateTime ), -weekDay( dateTime ) );
+    DateTime week_start = addDays( zeroTime( dateTime ), -weekDayWithMondayBase( dateTime ) );
     DateTime week_end = addDays( week_start, 7 );
 
     // Filter the retrieved opportunities to grab those for the given week.

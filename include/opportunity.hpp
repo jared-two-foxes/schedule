@@ -4,6 +4,23 @@
 #include <schedule/DateTime.hpp>
 #include <string>
 
+struct Address
+{
+  std::string name;
+  std::string street;
+  std::string postcode;
+  std::string city;
+  std::string country;
+};
+
+struct Venue
+{
+  std::string name;
+  std::string description;
+  bool active;
+  Address primary_address;
+};
+
 struct Opportunity
 {
   int id;
@@ -24,6 +41,8 @@ struct Opportunity
   DateTime deliver_ends_at;
   DateTime collect_starts_at;
   DateTime collect_ends_at;
+
+  Venue venue;
 };
 
 #endif // SCHEDULE_OPPORTUNITY_HPP__

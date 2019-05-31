@@ -32,6 +32,11 @@ DateTime makeDateTime( const std::time_t& t )
   return dateTime;
 }
 
+DateTime cleanse( DateTime const & dateTime )
+{
+  return makeDateTime( makeTime(dateTime) );
+}
+
 DateTime Now()
 {
   time_t now = time( nullptr );
@@ -39,24 +44,31 @@ DateTime Now()
 }
 
 int32_t weekDay( const DateTime& dateTime )
+// This assumes Sunday = 0
 {
   std::time_t t = makeTime( dateTime );
   std::tm* tm = localtime(&t);
   return tm->tm_wday;
 }
 
+int32_t weekDayWithMondayBase( DateTime const & dateTime ) 
+// Assumes that Monday = 0
+{
+  return ( ( weekDay( dateTime ) - 1 ) % 7 );
+}
+
 DateTime addSeconds( const DateTime& dateTime, const int32_t& seconds )
 {
   DateTime out = dateTime;
   out.SECOND += seconds;
-  return out;
+  return cleanse( out );
 }
 
 DateTime addDays( const DateTime& dateTime, const int32_t& days )
 {
   DateTime out = dateTime;
   out.DAY += days;
-  return out;
+  return cleanse( out );
 }
 
 DateTime zeroTime( const DateTime& dateTime )
@@ -83,8 +95,14 @@ DateTime Parse( const std::string& dateTimeStr, const std::string& formatStr )
       &dateTime.YEAR, &dateTime.MONTH, &dateTime.DAY, &dateTime.HOUR,
       &dateTime.MINUTE, &dateTime.SECOND );
   }
+  else if ( formatStr  == "DD/MM" )
+  {
+    dateTime = Now();
+    sscanf( (char *)dateTimeStr.c_str(), "%2hu/%2hu/%2hu", &dateTime.DAY,
+      &dateTime.MONTH );
+  }
 
-  return dateTime;
+  return cleanse( dateTime );
 }
 
 std::string tostring( const DateTime& dateTime, const std::string formatStr )
