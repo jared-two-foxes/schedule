@@ -22,10 +22,10 @@ using foundation::StrCat;
 
 
 namespace googleapis {
-  const char kClientId[] = "64255872448-1grg1talmvfeui14s4ddh6jhade90l3q.apps.googleusercontent.com";
-  const char kClientSecret[] = "rzlhuPrFOwNxXMbC_Ed8AK_L";
-  const char kApiKey[]="AIzaSyC2BrDgLTrUKvv4rKHzz_gFlcMTvutIops";
-  const char kMapsApiKey[]="AIzaSyD5cje60niMC833wGIJOlu3BsW79TwFVsQ";
+  const char kClientId[] = "{client_id}"; 
+  const char kClientSecret[] = "{client_secret}"; 
+  const char kApiKey[]="{api_key}"; 
+  const char kMapsApiKey[]="{maps_api_key}"; 
   const char kDefaultAuthUri[] = "https://accounts.google.com/o/oauth2/auth";
   const char kDefaultTokenUri[] = "https://accounts.google.com/o/oauth2/token";
   const char kDefaultRevokeUri[] = "https://accounts.google.com/o/oauth2/revoke";
